@@ -10,9 +10,9 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { changePassword } from './dto/change-password.dto';
+import { ChangePassword, ResetPassword } from './dto/change-password.dto';
 import { CreateAuthDto } from './dto/create-auth.dto';
-import { refreshToken } from './dto/refresh-token.dto';
+import { RefreshToken } from './dto/refresh-token.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 
 @Controller('auth')
@@ -28,15 +28,20 @@ export class AuthController {
   }
 
   @Post('/changepassword')
-  async changePassword(@Body() password: changePassword, @Req() req: any) {
+  async changePassword(@Body() password: ChangePassword, @Req() req: any) {
     const { user_id } = req.user;
     return this.authService.changePassword(password, user_id);
   }
 
   @Post('/refreshtoken')
-  async refreshToken(@Body() credential: refreshToken, @Req() req: any) {
+  async refreshToken(@Body() credential: RefreshToken, @Req() req: any) {
     const { user_id } = req.user;
     return this.authService.refreshToken(credential, user_id);
+  }
+
+  @Patch('/resetpassword')
+  async resetPassword(@Body() resetPassword: ResetPassword) {
+    return this.authService.resetPassword(resetPassword);
   }
 
   @Post('/logout')

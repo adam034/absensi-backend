@@ -6,9 +6,9 @@ import { CreateAuthDto } from './dto/create-auth.dto';
 import * as bcrypt from 'bcrypt';
 import * as moment from 'moment';
 import * as jwt from 'jsonwebtoken';
-import { changePassword } from './dto/change-password.dto';
+import { ChangePassword, ResetPassword } from './dto/change-password.dto';
 import { Credential } from './entities/credential.model';
-import { refreshToken } from './dto/refresh-token.dto';
+import { RefreshToken } from './dto/refresh-token.dto';
 import { sequelize } from 'src/database/db.injection';
 import Excel from 'exceljs';
 @Injectable()
@@ -137,7 +137,7 @@ export class AuthService {
     };
   }
 
-  async changePassword(password: changePassword, id: number) {
+  async changePassword(password: ChangePassword, id: number) {
     const user = await this.userModel.findOne({
       where: {
         user_id: id,
@@ -178,7 +178,7 @@ export class AuthService {
     };
   }
 
-  async refreshToken(credential: refreshToken, id: number) {
+  async refreshToken(credential: RefreshToken, id: number) {
     const findCredential = await this.credentialModel.findOne({
       where: {
         token_value: credential.token,
@@ -239,8 +239,31 @@ export class AuthService {
     return user;
   }
 
-  private async generateToken(payload: any) {
-    return jwt.sign(payload, process.env.SECRET_KEY, { expiresIn: '7d' });
+  async resetPassword(resetPassword: ResetPassword) {
+    const isUserExist = await this.userModel.findOne({
+      where: {
+        user_id: resetPassword.user_id,
+      },
+    });
+    if (isUserExist) {
+      await this.userModel.update(
+        {
+          password: bcrypt.hashSync('user123', 10),
+        },
+        {
+          where: {
+            user_id: resetPassword.user_id,
+          },
+        },
+      );
+    }
+    return {
+      success: true,
+      message: 'successfully reset password',
+      data: {
+        password: 'user123',
+      },
+    };
   }
 
   async logout(user_id: any) {
@@ -256,6 +279,9 @@ export class AuthService {
     };
   }
 
+  private async generateToken(payload: any) {
+    return jwt.sign(payload, process.env.SECRET_KEY, { expiresIn: '7d' });
+  }
   // create(createAuthDto: CreateAuthDto) {
   //   return 'This action adds a new auth';
   // }
