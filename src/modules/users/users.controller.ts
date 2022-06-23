@@ -6,11 +6,12 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto, CreateUsers } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 
 @Controller('users')
 @ApiTags('ABS - User')
@@ -27,15 +28,28 @@ export class UsersController {
   async createUsers(@Body() users: CreateUsers) {}
 
   @Get('/list')
-  async getUsers() {}
+  @ApiQuery({ name: 'pagination', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'search', required: false })
+  async getUsers(
+    @Query('pagination') pagination: string,
+    @Query('limit') limit: string,
+    @Query('search') search: string,
+  ) {
+    return this.usersService.getUsers(limit, pagination, search);
+  }
 
   @Get('/detail')
-  async getUser() {
-    return this.usersService.getUser();
+  @ApiQuery({ name: 'id', required: true })
+  async getUser(@Query('id') id: string) {
+    return this.usersService.getUser(id);
   }
 
   @Patch()
-  async updateUser() {}
+  @ApiQuery({ name: 'id', required: true })
+  async updateUser(@Query('id') id: string) {
+    return this.usersService.updateUser(id);
+  }
 
   @Delete()
   async deleteUser() {}

@@ -1,10 +1,12 @@
-import { Body, Injectable } from '@nestjs/common';
+import { Body, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { CreateUserDto, CreateUsers } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Profile } from './entities/profile.model';
 import { User } from './entities/user.model';
 import * as moment from 'moment';
+import * as bcrypt from 'bcrypt';
+import { Op } from 'sequelize';
 @Injectable()
 export class UsersService {
   constructor(
@@ -12,50 +14,169 @@ export class UsersService {
     @InjectModel(Profile) private profileModel: typeof Profile,
   ) {}
 
-  async createUser(createUser: CreateUserDto) {}
-  async createUsers(createUsers: CreateUsers) {}
-  async getUsers(limit: number, pagination: number, search: string) {}
-  async getUser() {
-    var startDate = moment('2022-01-01');
-    var endDate = moment('2022-01-10');
-    var employees = [
-      {
-        id: 1,
-        name: 'x',
-        records: [
-          {
-            value: 1,
-            date: '2022-01-01',
-          },
-          {
-            value: 2,
-            date: '2022-01-02',
-          },
-        ],
+  async createUser(createUser: CreateUserDto) {
+    const [user, created] = await this.userModel.findOrCreate({
+      where: {
+        nip: createUser.nip,
       },
-      {
-        id: 2,
-        name: 'y',
-        records: [
-          {
-            value: 1,
-            date: '2022-01-01',
-          },
-          {
-            value: 2,
-            date: '2022-01-02',
-          },
-        ],
+      defaults: {
+        password: bcrypt.hashSync('user123', 10),
+        role_id: createUser.role_id,
+        agency_id: createUser.agency_id,
+        is_active: true,
+        status_id: 2,
       },
-    ];
+    });
+    if (!created)
+      throw new HttpException(
+        {
+          success: false,
+          message: `user with nip ${createUser.nip} already exist`,
+          data: null,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
 
-    var dateList = await this.GetDaysBetweenDate(startDate, endDate);
+    await this.profileModel.create({
+      user_id: user.user_id,
+      full_name: createUser.profile.full_name,
+      phone: createUser.profile.phone,
+      address: createUser.profile.address,
+      photo:
+        createUser.profile.photo === '' ||
+        createUser.profile.photo === undefined
+          ? 'http://image.com'
+          : createUser.profile.photo,
+    });
     return {
-      data: dateList,
+      success: true,
+      message: 'success create user',
+      data: {
+        user_id: user.user_id,
+        nip: user.nip,
+        password: user.password,
+        role_id: user.role_id,
+        agency_id: user.agency_id,
+        is_active: user.is_active,
+        status_id: user.status_id,
+        profile: {
+          full_name: createUser.profile.full_name,
+          phone: createUser.profile.phone,
+          address: createUser.profile.address,
+          photo: createUser.profile.photo,
+        },
+        created_at: user.createdAt,
+        updated_at: user.updatedAt,
+        deleted_at: user.deletedAt,
+      },
     };
   }
-  async updateUser(id: number) {}
-  async deleteUser(id: number) {}
+  async createUsers(createUsers: CreateUsers) {}
+
+  async getUsers(limit: any, pagination: any, search: string) {
+    let condition = {
+        where: {
+          deletedAt: {
+            [Op.is]: null,
+          },
+        },
+      },
+      options = {},
+      data = [];
+
+    if (search) {
+      condition.where['full_name'] = {
+        [Op.iLike]: `%${search}%`,
+      };
+    }
+    if (limit & pagination) {
+      options = {
+        offset: (parseInt(pagination) - 1) * parseInt(limit),
+        limit: parseInt(limit),
+      };
+    }
+    const users: any = await this.userModel.findAndCountAll({
+      attributes: {
+        exclude: ['password'],
+      },
+      include: [
+        {
+          model: Profile,
+          as: 'profile',
+          ...condition,
+        },
+      ],
+      ...options,
+    });
+    data = users.rows.map((user) => {
+      const { profile } = user;
+      return {
+        id: user.user_id,
+        nip: user.nip,
+        status: user.status_id,
+        agency: user.agency_id,
+        is_active: user.is_active,
+        profile: {
+          full_name: profile.full_name,
+          phone: profile.phone,
+          address: profile.address,
+          photo: profile.photo,
+        },
+        created_at: user.createdAt,
+        updated_at: user.updatedAt,
+      };
+    });
+    return {
+      success: true,
+      message: 'success get list users',
+      data: data,
+      meta: {
+        pagination: pagination ? Number(pagination) : 0,
+        limit: limit ? Number(limit) : 0,
+        total_page: limit
+          ? Math.ceil(parseInt(users.count) / Number(limit))
+          : 0,
+        count: users.count ? parseInt(users.count) : 0,
+      },
+    };
+  }
+  async getUser(id: string) {
+    let user = null;
+    const getUser = await this.userModel.findOne({
+      attributes: {
+        exclude: ['password'],
+      },
+      include: [
+        {
+          model: Profile,
+          as: 'profile',
+        },
+      ],
+    });
+    user = {
+      id: getUser.user_id,
+      nip: getUser.nip,
+      status: getUser.status_id,
+      agency: getUser.agency_id,
+      is_active: getUser.is_active,
+      profile: {
+        id: getUser.profile.profile_id,
+        full_name: getUser.profile.full_name,
+        phone: getUser.profile.phone,
+        address: getUser.profile.address,
+        photo: getUser.profile.photo,
+      },
+      created_at: getUser.createdAt,
+      updated_at: getUser.updatedAt,
+    };
+    return {
+      success: true,
+      message: 'success get detail user',
+      data: user,
+    };
+  }
+  async updateUser(id: string) {}
+  async deleteUser(id: string) {}
 
   private async GetDaysBetweenDate(start: any, end: any) {
     var now = start.clone(),
@@ -72,6 +193,44 @@ export class UsersService {
       for (let j = 0; j < emps[i].records.length; j++) {}
     }
   }
+  // jangan di hapus ini
+  // var startDate = moment('2022-01-01');
+  // var endDate = moment('2022-01-10');
+  // var employees = [
+  //   {
+  //     id: 1,
+  //     name: 'x',
+  //     records: [
+  //       {
+  //         value: 1,
+  //         date: '2022-01-01',
+  //       },
+  //       {
+  //         value: 2,
+  //         date: '2022-01-02',
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     id: 2,
+  //     name: 'y',
+  //     records: [
+  //       {
+  //         value: 1,
+  //         date: '2022-01-01',
+  //       },
+  //       {
+  //         value: 2,
+  //         date: '2022-01-02',
+  //       },
+  //     ],
+  //   },
+  // ];
+  // var dateList = await this.GetDaysBetweenDate(startDate, endDate);
+  // return {
+  //   data: dateList,
+  // };
+
   // create(createUserDto: CreateUserDto) {
   //   return 'This action adds a new user';
   // }

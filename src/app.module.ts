@@ -16,6 +16,7 @@ import { AuthMiddleware } from './middlewares/auth.middleware';
 import { Credential } from './modules/auth/entities/credential.model';
 import { RecordsModule } from './modules/records/records.module';
 import { Record } from './modules/records/entities/record.model';
+import { StatusesModule } from './modules/statuses/statuses.module';
 
 dotenv.config();
 const node = process.env.STATE;
@@ -51,6 +52,7 @@ const database =
     UsersModule,
     AuthModule,
     RecordsModule,
+    StatusesModule,
   ],
   controllers: [],
   providers: [AppService],

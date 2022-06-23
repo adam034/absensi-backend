@@ -20,6 +20,7 @@ export class RecordsService {
       Number(process.env.DURATION_OUT),
       moment().format('YYYY-MM-DD HH:mm A'),
     );
+
     let message = '';
     const existingRecord = await this.recordModel.findOne({
       where: {
@@ -72,14 +73,18 @@ export class RecordsService {
       check_out: checkOut,
     };
   }
-
+  async detailRecordMobile(id: number) {
+    const getTodayRecord = await this.recordModel.findOne({
+      where: {
+        user_id: id,
+      },
+    });
+  }
   // findAll() {
   //   return `This action returns all records`;
   // }
 
-  async findOne(id: number) {
-    return `This action returns a #${id} record`;
-  }
+  async findOne(id: number) {}
 
   private async splitTime(startTime: string, duration: number, date: string) {
     let tempTime = [];
