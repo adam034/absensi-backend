@@ -47,12 +47,15 @@ export class UsersController {
 
   @Patch()
   @ApiQuery({ name: 'id', required: true })
-  async updateUser(@Query('id') id: string) {
-    return this.usersService.updateUser(id);
+  async updateUser(@Query('id') id: string, @Body() updateuser: UpdateUserDto) {
+    return this.usersService.updateUser(id, updateuser);
   }
 
   @Delete()
-  async deleteUser() {}
+  @ApiQuery({ name: 'id', required: true })
+  async deleteUser(@Query('id') id: string) {
+    return this.usersService.deleteUser(id);
+  }
   // @Post()
   // create(@Body() createUserDto: CreateUserDto) {
   //   return this.usersService.create(createUserDto);

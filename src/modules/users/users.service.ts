@@ -75,11 +75,7 @@ export class UsersService {
 
   async getUsers(limit: any, pagination: any, search: string) {
     let condition = {
-        where: {
-          deletedAt: {
-            [Op.is]: null,
-          },
-        },
+        where: {},
       },
       options = {},
       data = [];
@@ -99,6 +95,11 @@ export class UsersService {
       attributes: {
         exclude: ['password'],
       },
+      where: {
+        deletedAt: {
+          [Op.is]: null,
+        },
+      },
       include: [
         {
           model: Profile,
@@ -108,12 +109,12 @@ export class UsersService {
       ],
       ...options,
     });
-    data = users.rows.map((user) => {
+    data = users.rows.map((user: any) => {
       const { profile } = user;
       return {
         id: user.user_id,
         nip: user.nip,
-        status: user.status_id,
+        role: user.role_id,
         agency: user.agency_id,
         is_active: user.is_active,
         profile: {
@@ -156,7 +157,7 @@ export class UsersService {
     user = {
       id: getUser.user_id,
       nip: getUser.nip,
-      status: getUser.status_id,
+      role: getUser.role_id,
       agency: getUser.agency_id,
       is_active: getUser.is_active,
       profile: {
@@ -175,8 +176,61 @@ export class UsersService {
       data: user,
     };
   }
-  async updateUser(id: string) {}
-  async deleteUser(id: string) {}
+  async updateUser(id: string, update: UpdateUserDto) {
+    const changeUser = await this.userModel.update(
+      {
+        nip: update.nip,
+        role_id: update.role,
+        agency_id: update.agency,
+      },
+      {
+        where: {
+          user_id: Number(id),
+        },
+      },
+    );
+    if (changeUser) {
+      await this.profileModel.update(
+        {
+          full_name: update.profile.full_name,
+          phone: update.profile.phone,
+          address: update.profile.address,
+          photo: update.profile.photo,
+        },
+        {
+          where: {
+            user_id: Number(id),
+          },
+        },
+      );
+    }
+    return {
+      success: true,
+      message: 'success update user',
+      data: {
+        id: Number(id),
+        nip: update.nip,
+        role_id: update.role,
+        agency_id: update.agency,
+        full_name: update.profile.full_name,
+        phone: update.profile.phone,
+        address: update.profile.address,
+        photo: update.profile.photo,
+      },
+    };
+  }
+  async deleteUser(id: string) {
+    await this.userModel.update(
+      {
+        deletedAt: moment().format('YYYY-MM-DD HH:mm:ss'),
+      },
+      {
+        where: {
+          user_id: Number(id),
+        },
+      },
+    );
+  }
 
   private async GetDaysBetweenDate(start: any, end: any) {
     var now = start.clone(),
